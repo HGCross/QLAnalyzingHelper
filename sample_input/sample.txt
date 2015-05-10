@@ -1,0 +1,4 @@
+Do you work in C, C++, or Java on large projects?
+We'll show how Python will give you results quicker and more reliably.
+Are you already scripting in a language other than Python?
+Whatever programming you're doing now, Python can imporve it.
