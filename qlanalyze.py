@@ -4,18 +4,37 @@
 '''
 import sys
 import time
-import sqlcmp
-from sqlcmp import extract_sql_sig
+import sqlparse
 
-'''
-# Time: 150427  3:10:58
-# User@Host: root[root] @ localhost []
-# Query_time: 49.532116  Lock_time: 0.000000 Rows_sent: 24596040  Rows_examined: 24596040
-use edubasestudydb;
-SET timestamp=1430071858;
-SELECT /*!40001 SQL_NO_CACHE */ * FROM `t_student_errnote`;
-'''
+def extract_sql_sig(sql, tokens=None):
+    ret = [];
+    
+    if sql is not None:
+        formatted = sqlparse.format(sql, reindent=True, keyword_case='upper', strip_comments=True)
+        parsed = sqlparse.parse(formatted)
+        tokens = parsed[0].tokens
+        
+    for token in tokens:
+        if token.is_whitespace():
+            pass
+        elif token.ttype in (sqlparse.tokens.Literal.String.Single, sqlparse.tokens.Literal.Number.Integer):
+            pass
+        elif token.is_group():
+            ret.append(extract_sql_sig(None, token.flatten()))
+        else:
+            ret.append(token.value)
+    return hash(tuple(ret))
+
 def parseQueryLog(fname):
+    '''
+    query log를 부석하여, QueryItem 형식의 인스턴스 리스트를 반환하는 함수로, 분석 대상이 되는 query log는 아래와 같은 형식의 문단이 계속되는 형태이다.
+    # Time: 150427  3:10:58
+    # User@Host: root[root] @ localhost []
+    # Query_time: 49.532116  Lock_time: 0.000000 Rows_sent: 24596040  Rows_examined: 24596040
+    use edubasestudydb;
+    SET timestamp=1430071858;
+    SELECT /*!40001 SQL_NO_CACHE */ * FROM `t_student_errnote`;
+    '''
     f = open(fname)
     curTime = time.strptime('150427', '%y%m%d')  #기본값
     
@@ -67,6 +86,9 @@ def parseQueryLog(fname):
     return result_set
 
 def saveToCSVFile(fname, queryList):
+    '''
+    fname의 이름을 갖는 csv파일을 생성하여, queryList를 csv 타입의 문자열로 변환후 저장해주는 함수
+    '''
     f = open(fname, 'w')
     f.writelines(QueryItem.getCSVHeaderString())
     for queryItem in queryList:
@@ -74,6 +96,9 @@ def saveToCSVFile(fname, queryList):
     f.close()
 
 def groupQueryList(orgql):
+    '''
+    인자로 주어진 QueryItem 리스트에서 중복된 쿼리를 제거한 후 반환
+    '''
     result_set = []
     hashdic = {}
     for qi in orgql:
@@ -114,10 +139,9 @@ if __name__ == '__main__':
         print("This program is for extracting query information and is for saving CSV type file.")
         print("Usage : log_file_name csv_file_name")
         sys.exit()
-    print('Start to parse query log...')
+    print('Started to parse query log...')
     ql = parseQueryLog(sys.argv[1])
     print('done')
-    print(len(ql))
-    print(ql[0].HashVal) #4784627173362862490
+    print(len(ql), ' queries extracted to file')
     grouped_ql = groupQueryList(ql)
     saveToCSVFile(sys.argv[2], grouped_ql)
