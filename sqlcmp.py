@@ -346,7 +346,7 @@ SELECT IFNULL(modu.head_gbn, '') AS head_gbn /*말머리 구분(10129)*/
               ,'' AS media_time
               ,'' AS study_duration
         FROM tz_lms_plan_theme lpt
-        INNER JOIN tz_lcms_theme_material ltm
+        INNER JOIN tz_lcms_theme_material ltm3
         ON lpt.material_no = ltm.material_no
         WHERE lpt.student_no = '272749'
             AND lpt.plan_de >= '2015.04.27'
