@@ -4,6 +4,8 @@
 '''
 import sys
 import time
+import sqlcmp
+from sqlcmp import extract_sql_sig
 
 '''
 # Time: 150427  3:10:58
@@ -55,15 +57,11 @@ def parseQueryLog(fname):
                     line = f.readline()
                 if 'SET timestamp=' in line:
                     line = f.readline()
-                if str(qi.Query_time) == '59.967154':
-                    print('\n' in line)
-                #print(line)
                 qi.QueryString += line.replace('\n', ' ').replace('\r', '')
                 line = f.readline()
+            qi.HashVal = extract_sql_sig(qi.QueryString)
             result_set.append(qi)
-        #exitCount += 1
-        
-    
+        #exitCount += 1    
     #for i in range(100):
     #    result_set.append(QueryItem())
     return result_set
@@ -74,7 +72,16 @@ def saveToCSVFile(fname, queryList):
     for queryItem in queryList:
         f.writelines(queryItem.convertToCSVString())
     f.close()
-    
+
+def groupQueryList(orgql):
+    result_set = []
+    hashdic = {}
+    for qi in orgql:
+        if qi.HashVal not in hashdic:
+            result_set.append(qi)
+            hashdic[qi.HashVal] = True
+    return result_set
+
 class QueryItem:
     Time = time.strptime('150427', '%y%m%d')
     User = 'root[root]'
@@ -84,6 +91,7 @@ class QueryItem:
     Rows_sent = 24596040
     Rows_examined = 24596040
     QueryString = ''
+    HashVal = 0
     
     @classmethod
     def getCSVHeaderString(cls):
@@ -106,5 +114,10 @@ if __name__ == '__main__':
         print("This program is for extracting query information and is for saving CSV type file.")
         print("Usage : log_file_name csv_file_name")
         sys.exit()
+    print('Start to parse query log...')
     ql = parseQueryLog(sys.argv[1])
-    saveToCSVFile(sys.argv[2], ql)
+    print('done')
+    print(len(ql))
+    print(ql[0].HashVal) #4784627173362862490
+    grouped_ql = groupQueryList(ql)
+    saveToCSVFile(sys.argv[2], grouped_ql)

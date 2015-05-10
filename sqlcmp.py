@@ -372,9 +372,10 @@ def extract_sql_sig(sql, tokens=None):
         else:
             ret.append(token.value)
     return hash(tuple(ret))
-
+''' example code
 sig1 = extract_sql_sig(sql1)
 sig2 = extract_sql_sig(sql2)
 print(sig1)
 print(sig2)
 print(sig1 == sig2)
+'''
