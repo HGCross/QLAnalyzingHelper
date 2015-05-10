@@ -1,0 +1,14 @@
+
+.pydevproject
+
+.project
+
+.settings/org.eclipse.core.resources.prefs
+
+dumbdbm_read_test.py
+
+dumbdbm_test.py
+
+redirect.py
+
+replace.py
