@@ -1,10 +1,12 @@
 # coding: utf-8
 '''
 @author: hoonja
+@editor: gulby
 '''
 import sys
 import time
 import sqlparse
+import xlsxwriter
 
 def extract_sql_sig(sql, tokens=None):
     ret = [];
@@ -68,7 +70,7 @@ def parseQueryLog(fname):
                 qi.Lock_time = queryinfo[1]
                 qi.Rows_sent = queryinfo[2]
                 qi.Rows_examined = queryinfo[3]
-                #print(qi.Query_time, qi.Lock_time, qi.Rows_sent, qi.Rows_examined)            
+                #print(qi.Query_time, qi.Lock_time, qi.Rows_sent, qi.Rows_examined)
             line = f.readline()
             
             while line and line[0] != '#':
@@ -76,12 +78,13 @@ def parseQueryLog(fname):
                     line = f.readline()
                 if 'SET timestamp=' in line:
                     line = f.readline()
-                qi.QueryString += line.replace('\n', ' ').replace('\r', '')
+                #qi.QueryString += line.replace('\n', ' ').replace('\r', '')
+                qi.QueryString += line.rstrip('\r\n') + '\r\n'
                 line = f.readline()
             qi.HashVal = extract_sql_sig(qi.QueryString)
             #qi.QueryString = sqlparse.format(qi.QueryString, reindent=True, keyword_case='upper', strip_comments=False)
             result_set.append(qi)
-        #exitCount += 1    
+        #exitCount += 1
     #for i in range(100):
     #    result_set.append(QueryItem())
     return result_set
@@ -96,6 +99,37 @@ def saveToCSVFile(fname, queryList):
         #print(queryItem.convertToCSVString())
         f.writelines(queryItem.convertToCSVString())
     f.close()
+
+def saveToExcelFile(fname, queryList):
+    '''
+    다른 부분 구조의 전반적인 리팩토링 필요
+    일단 리팩토링 없이 구현
+    '''
+    workbook = xlsxwriter.Workbook(fname)
+    ws = workbook.add_worksheet()
+    #'time,user,host,query_time,lock_time,rows_send,rows_examined,query_string\n'
+    row = 0
+    ws.write(row, 0, 'time')
+    ws.write(row, 1, 'user')
+    ws.write(row, 2, 'host')
+    ws.write(row, 3, 'query_time')
+    ws.write(row, 4, 'lock_time')
+    ws.write(row, 5, 'rows_send')
+    ws.write(row, 6, 'rows_examined')
+    ws.write(row, 7, 'query_string')
+    for qi in queryList:
+        row += 1
+        ws.write(row, 0, time.strftime('%Y-%m-%d %H:%M:%S', qi.Time))
+        ws.write(row, 1, qi.User)
+        ws.write(row, 2, qi.Host)
+        ws.write(row, 3, qi.Query_time)
+        ws.write(row, 4, qi.Lock_time)
+        ws.write(row, 5, qi.Rows_sent)
+        ws.write(row, 6, qi.Rows_examined)
+        str = sqlparse.format(qi.QueryString, reindent=False, strip_comments=False)
+        ws.write(row, 7, str.replace('\r', ' ').replace('\n', ''))
+        ws.write_comment(row, 7, str, {'width':800, 'height':600})
+    workbook.close()
 
 def groupQueryList(orgql):
     '''
@@ -123,7 +157,7 @@ class QueryItem:
     @classmethod
     def getCSVHeaderString(cls):
         return 'time,user,host,query_time,lock_time,rows_send,rows_examined,query_string\n'
-   
+
     def convertToCSVString(self):
         record = time.strftime('%Y-%m-%d %H:%M:%S', self.Time) + ','
         record += self.User + ','
@@ -146,4 +180,5 @@ if __name__ == '__main__':
     print('done')
     print(len(ql), ' queries extracted to file')
     grouped_ql = groupQueryList(ql)
-    saveToCSVFile(sys.argv[2], grouped_ql)
+    #saveToCSVFile(sys.argv[2], grouped_ql)
+    saveToExcelFile(sys.argv[2], grouped_ql)
