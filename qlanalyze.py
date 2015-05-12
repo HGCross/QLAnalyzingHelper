@@ -27,7 +27,7 @@ def extract_sql_sig(sql, tokens=None):
 
 def parseQueryLog(fname):
     '''
-    query log를 부석하여, QueryItem 형식의 인스턴스 리스트를 반환하는 함수로, 분석 대상이 되는 query log는 아래와 같은 형식의 문단이 계속되는 형태이다.
+    query log를 분석하여, QueryItem 형식의 인스턴스 리스트를 반환하는 함수로, 분석 대상이 되는 query log는 아래와 같은 형식의 문단이 계속되는 형태이다.
     # Time: 150427  3:10:58
     # User@Host: root[root] @ localhost []
     # Query_time: 49.532116  Lock_time: 0.000000 Rows_sent: 24596040  Rows_examined: 24596040
@@ -79,6 +79,7 @@ def parseQueryLog(fname):
                 qi.QueryString += line.replace('\n', ' ').replace('\r', '')
                 line = f.readline()
             qi.HashVal = extract_sql_sig(qi.QueryString)
+            qi.QueryString = sqlparse.format(qi.QueryString, reindent=True, keyword_case='upper', strip_comments=False)
             result_set.append(qi)
         #exitCount += 1    
     #for i in range(100):
@@ -92,6 +93,7 @@ def saveToCSVFile(fname, queryList):
     f = open(fname, 'w')
     f.writelines(QueryItem.getCSVHeaderString())
     for queryItem in queryList:
+        print(queryItem.convertToCSVString())
         f.writelines(queryItem.convertToCSVString())
     f.close()
 
