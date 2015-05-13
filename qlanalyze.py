@@ -79,7 +79,7 @@ def parseQueryLog(fname):
                 qi.QueryString += line.replace('\n', ' ').replace('\r', '')
                 line = f.readline()
             qi.HashVal = extract_sql_sig(qi.QueryString)
-            qi.QueryString = sqlparse.format(qi.QueryString, reindent=True, keyword_case='upper', strip_comments=False)
+            #qi.QueryString = sqlparse.format(qi.QueryString, reindent=True, keyword_case='upper', strip_comments=False)
             result_set.append(qi)
         #exitCount += 1    
     #for i in range(100):
@@ -93,7 +93,7 @@ def saveToCSVFile(fname, queryList):
     f = open(fname, 'w')
     f.writelines(QueryItem.getCSVHeaderString())
     for queryItem in queryList:
-        print(queryItem.convertToCSVString())
+        #print(queryItem.convertToCSVString())
         f.writelines(queryItem.convertToCSVString())
     f.close()
 
