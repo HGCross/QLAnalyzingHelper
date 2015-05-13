@@ -66,10 +66,10 @@ def parseQueryLog(fname):
             #if line.find('# Query_time: ') != 1:
             if '# Query_time: ' in line:
                 queryinfo = line.replace('# Query_time: ', '').replace(' Lock_time: ', '').replace('Rows_sent: ', '').replace(' Rows_examined: ', '').replace('\n', '').replace('\r', '').split(' ')
-                qi.Query_time = queryinfo[0]
-                qi.Lock_time = queryinfo[1]
-                qi.Rows_sent = queryinfo[2]
-                qi.Rows_examined = queryinfo[3]
+                qi.Query_time = float(queryinfo[0])
+                qi.Lock_time = float(queryinfo[1])
+                qi.Rows_sent = int(queryinfo[2])
+                qi.Rows_examined = int(queryinfo[3])
                 #print(qi.Query_time, qi.Lock_time, qi.Rows_sent, qi.Rows_examined)
             line = f.readline()
             
@@ -109,38 +109,58 @@ def saveToExcelFile(fname, queryList):
     ws = workbook.add_worksheet()
     #'time,user,host,query_time,lock_time,rows_send,rows_examined,query_string\n'
     row = 0
-    ws.write(row, 0, 'time')
-    ws.write(row, 1, 'user')
-    ws.write(row, 2, 'host')
-    ws.write(row, 3, 'query_time')
-    ws.write(row, 4, 'lock_time')
-    ws.write(row, 5, 'rows_send')
-    ws.write(row, 6, 'rows_examined')
-    ws.write(row, 7, 'query_string')
+    col = 0
+    ws.write(row, col, 'sig'); col += 1;
+    ws.write(row, col, 'time'); col += 1;
+    ws.write(row, col, 'user'); col += 1;
+    ws.write(row, col, 'host'); col += 1;
+    ws.write(row, col, 'query_time'); col += 1;
+    ws.write(row, col, 'lock_time'); col += 1;
+    ws.write(row, col, 'rows_send'); col += 1;
+    ws.write(row, col, 'rows_examined'); col += 1;
+    ws.write(row, col, 'count'); col += 1;
+    ws.write(row, col, 'check'); col += 1;
+    ws.write(row, col, 'org'); col += 1;
+    ws.write(row, col, 'tuning'); col += 1;
+    #ws.write(row, col, 'format'); col += 1;
     for qi in queryList:
         row += 1
-        ws.write(row, 0, time.strftime('%Y-%m-%d %H:%M:%S', qi.Time))
-        ws.write(row, 1, qi.User)
-        ws.write(row, 2, qi.Host)
-        ws.write(row, 3, qi.Query_time)
-        ws.write(row, 4, qi.Lock_time)
-        ws.write(row, 5, qi.Rows_sent)
-        ws.write(row, 6, qi.Rows_examined)
+        col = 0
+        ws.write(row, col, unicode(qi.HashVal)); col += 1;
+        ws.write(row, col, time.strftime('%Y-%m-%d %H:%M:%S', qi.Time)); col += 1;
+        ws.write(row, col, qi.User); col += 1;
+        ws.write(row, col, qi.Host); col += 1;
+        ws.write(row, col, qi.Query_time); col += 1;
+        ws.write(row, col, qi.Lock_time); col += 1;
+        ws.write(row, col, qi.Rows_sent); col += 1;
+        ws.write(row, col, qi.Rows_examined); col += 1;
+        ws.write(row, col, qi.count); col += 1;
+        ws.write(row, col, ''); col += 1;
         str = sqlparse.format(qi.QueryString, reindent=False, strip_comments=False)
-        ws.write(row, 7, str.replace('\r', ' ').replace('\n', ''))
-        ws.write_comment(row, 7, str, {'width':800, 'height':600})
+        ws.write(row, col, str.replace('\r', ' ').replace('\n', ' ').replace('    ', ' ').replace('  ', ' '))
+        ws.write_comment(row, col, str, {'width':800, 'height':600}); col += 1;
+        ws.write(row, col, '...');
+        ws.write_comment(row, col, '', {'width':800, 'height':600}); col += 1;
+        #str = sqlparse.format(str, reindent=True, keyword_case='upper', identifier_case='lower', strip_comments=True, indent_tabs=False, indent_width=4)
+        #str = sqlparse.format(str, reindent=True, keyword_case='upper', identifier_case='lower', strip_comments=True, indent_tabs=True, indent_width=1)
+        #ws.write(row, col, '...');
+        #ws.write_comment(row, col, str, {'width':800, 'height':600}); col += 1;
     workbook.close()
 
 def groupQueryList(orgql):
     '''
     인자로 주어진 QueryItem 리스트에서 중복된 쿼리를 제거한 후 반환
     '''
+    orgql.sort(key=lambda x : x.HashVal)
+    cur_hash = 0
     result_set = []
-    hashdic = {}
     for qi in orgql:
-        if qi.HashVal not in hashdic:
-            result_set.append(qi)
-            hashdic[qi.HashVal] = True
+        if cur_hash == qi.HashVal:
+            result_set[0].count += 1
+        else:
+            result_set.insert(0, qi)
+            cur_hash = qi.HashVal
+    result_set.sort(key=lambda x : (x.User, x.Host, -x.Rows_examined*x.count))
     return result_set
 
 class QueryItem:
@@ -152,7 +172,8 @@ class QueryItem:
     Rows_sent = 24596040
     Rows_examined = 24596040
     QueryString = ''
-    HashVal = 0
+    HashVal = long(0)
+    count = 1
     
     @classmethod
     def getCSVHeaderString(cls):
