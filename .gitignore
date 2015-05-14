@@ -18,3 +18,5 @@ sample_output/stu_slave_20150506.csv
 sample_output/stu_slave_20150506.csv
 
 sqlcmp.pyc
+/dist/
+/build/
