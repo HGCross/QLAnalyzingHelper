@@ -156,9 +156,9 @@ def groupQueryList(orgql):
     result_set = []
     for qi in orgql:
         if cur_hash == qi.HashVal:
-            result_set[0].count += 1
+            result_set[-1].count += 1
         else:
-            result_set.insert(0, qi)
+            result_set.append(qi)
             cur_hash = qi.HashVal
     result_set.sort(key=lambda x : (x.User, x.Host, -x.Rows_examined*x.count))
     return result_set
