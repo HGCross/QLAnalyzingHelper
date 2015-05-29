@@ -146,6 +146,22 @@ def saveToExcelFile(fname, queryList):
         #ws.write(row, col, '...');
         #ws.write_comment(row, col, str, {'width':800, 'height':600}); col += 1;
     workbook.close()
+    
+def filterQueryList(orgql):
+    '''
+    인자로 주어진 QueryItem List에서 특정 조건에 부합하는 쿼리들은 제거하고 반환
+    현재의 필터링 조건은 1) 새벽 2~8시 사이, 2) user가 root, 3) host IP가 211.117.172.107 인 경우 or localhost 일
+    '''
+    result_set = []
+    for qi in orgql:
+        if qi.Time.tm_hour >= 2 and qi.Time.tm_hour < 8:
+            continue
+        if qi.User == 'root[root]':
+            continue
+        if qi.Host == '220.117.172.107' or qi.Host == 'localhost':
+            continue
+        result_set.append(qi)
+    return result_set;
 
 def groupQueryList(orgql):
     '''
@@ -200,6 +216,6 @@ if __name__ == '__main__':
     ql = parseQueryLog(sys.argv[1])
     print('done')
     print(len(ql), ' queries extracted to file')
-    grouped_ql = groupQueryList(ql)
+    grouped_ql = groupQueryList(filterQueryList(ql))
     #saveToCSVFile(sys.argv[2], grouped_ql)
     saveToExcelFile(sys.argv[2], grouped_ql)
