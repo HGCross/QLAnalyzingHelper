@@ -52,7 +52,7 @@ def parseQueryLog(fname):
                 curTime = time.strptime(line.replace('# Time: ', '').replace('\n', '').replace('\r', ''), '%y%m%d %H:%M:%S')
                 line = f.readline()
                 #print('curTime : ', curTime)
-            qi.Time = curTime            
+            qi.Time = qi.MaxTime = qi.MinTime = curTime            
             
             # User 정보
             if '# User@Host: ' in line:
@@ -63,7 +63,6 @@ def parseQueryLog(fname):
             line = f.readline()
             
             # Query_time, Lock_time, Rows_sent, Rows_examined
-            #if line.find('# Query_time: ') != 1:
             if '# Query_time: ' in line:
                 queryinfo = line.replace('# Query_time: ', '').replace(' Lock_time: ', '').replace('Rows_sent: ', '').replace(' Rows_examined: ', '').replace('\n', '').replace('\r', '').split(' ')
                 qi.Query_time = float(queryinfo[0])
@@ -74,11 +73,12 @@ def parseQueryLog(fname):
             line = f.readline()
             
             while line and line[0] != '#':
-                if 'use ' in line or 'USE ' in line:
+                if ('use ' in line or 'USE ' in line) and (';' in line): #땜빵 수정.. ';' 검색 부분이 없으면, 일반 코드에 use가 들어가는 경우도 걸러짐. 정규식을 쓰는 것이 정석
                     line = f.readline()
                 if 'SET timestamp=' in line:
                     line = f.readline()
                 #qi.QueryString += line.replace('\n', ' ').replace('\r', '')
+                a = line.rstrip('\r\n') + '\r\n'
                 qi.QueryString += line.rstrip('\r\n') + '\r\n'
                 line = f.readline()
             qi.HashVal = extract_sql_sig(qi.QueryString)
@@ -112,6 +112,8 @@ def saveToExcelFile(fname, queryList):
     col = 0
     ws.write(row, col, 'sig'); col += 1;
     ws.write(row, col, 'time'); col += 1;
+    ws.write(row, col, 'max_time'); col += 1;
+    ws.write(row, col, 'min_time'); col += 1;
     ws.write(row, col, 'user'); col += 1;
     ws.write(row, col, 'host'); col += 1;
     ws.write(row, col, 'query_time'); col += 1;
@@ -128,6 +130,8 @@ def saveToExcelFile(fname, queryList):
         col = 0
         ws.write(row, col, unicode(qi.HashVal)); col += 1;
         ws.write(row, col, time.strftime('%Y-%m-%d %H:%M:%S', qi.Time)); col += 1;
+        ws.write(row, col, time.strftime('%Y-%m-%d %H:%M:%S', qi.MaxTime)); col += 1;
+        ws.write(row, col, time.strftime('%Y-%m-%d %H:%M:%S', qi.MinTime)); col += 1;
         ws.write(row, col, qi.User); col += 1;
         ws.write(row, col, qi.Host); col += 1;
         ws.write(row, col, qi.Query_time); col += 1;
@@ -147,7 +151,7 @@ def saveToExcelFile(fname, queryList):
         #ws.write_comment(row, col, str, {'width':800, 'height':600}); col += 1;
     workbook.close()
     
-def filterQueryList(orgql):
+def filterQueryList(orgql, ignore_sigs=None):
     '''
     인자로 주어진 QueryItem List에서 특정 조건에 부합하는 쿼리들은 제거하고 반환
     현재의 필터링 조건은 1) 새벽 2~8시 사이, 2) user가 root, 3) host IP가 211.117.172.107 인 경우 or localhost 일
@@ -160,8 +164,19 @@ def filterQueryList(orgql):
             continue
         if qi.Host == '220.117.172.107' or qi.Host == 'localhost':
             continue
+        if ignore_sigs and ignore_sigs.get(qi.HashVal, 0) == 1:
+            continue
         result_set.append(qi)
     return result_set;
+
+def getIgnoreSigs(fname=None):
+    if fname == None or fname == '':
+        return None
+    f = open(fname)
+    result_dic = {}
+    for line in f:
+        result_dic[int(line)] = 1
+    return result_dic; 
 
 def groupQueryList(orgql):
     '''
@@ -173,6 +188,10 @@ def groupQueryList(orgql):
     for qi in orgql:
         if cur_hash == qi.HashVal:
             result_set[-1].count += 1
+            if result_set[-1].MaxTime <= qi.Time:
+                result_set[-1].MaxTime = qi.Time
+            if result_set[-1].MinTime >= qi.Time:
+                result_set[-1].MinTime = qi.Time
         else:
             result_set.append(qi)
             cur_hash = qi.HashVal
@@ -188,8 +207,10 @@ class QueryItem:
     Rows_sent = 24596040
     Rows_examined = 24596040
     QueryString = ''
-    HashVal = long(0)
+    HashVal = 0
     count = 1
+    MaxTime = time.strptime('150427', '%y%m%d')
+    MinTime = time.strptime('150427', '%y%m%d')
     
     @classmethod
     def getCSVHeaderString(cls):
@@ -208,14 +229,22 @@ class QueryItem:
 
 # Start Point
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
+    if len(sys.argv) < 3:
         print("This program is for extracting query information and is for saving CSV type file.")
         print("Usage : log_file_name csv_file_name")
         sys.exit()
-    print('Started to parse query log...')
+    print('STEP 1 : Parsing query log...')
     ql = parseQueryLog(sys.argv[1])
-    print('done')
-    print(len(ql), ' queries extracted to file')
-    grouped_ql = groupQueryList(filterQueryList(ql))
+    print(len(ql), ' queries extracted from log file')
+    
+    print('STEP 2 : Grouping query...')
+    ignore_sigs = [];
+    if len(sys.argv) == 4:
+        grouped_ql = groupQueryList(filterQueryList(ql, getIgnoreSigs(sys.argv[3])))
+    else:
+        grouped_ql = groupQueryList(filterQueryList(ql)) 
+    
+    print('STEP 3 : Saving result...')
     #saveToCSVFile(sys.argv[2], grouped_ql)
     saveToExcelFile(sys.argv[2], grouped_ql)
+    print('done')
