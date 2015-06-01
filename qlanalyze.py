@@ -240,7 +240,8 @@ if __name__ == '__main__':
     print('STEP 2 : Grouping query...')
     ignore_sigs = [];
     if len(sys.argv) == 4:
-        grouped_ql = groupQueryList(filterQueryList(ql, getIgnoreSigs(sys.argv[3])))
+        #grouped_ql = groupQueryList(filterQueryList(ql, getIgnoreSigs(sys.argv[3])))
+        grouped_ql = filterQueryList(groupQueryList(ql), getIgnoreSigs(sys.argv[3]))
     else:
         grouped_ql = groupQueryList(filterQueryList(ql)) 
     
