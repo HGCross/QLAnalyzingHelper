@@ -82,8 +82,11 @@ def parseQueryLog(fname):
                 qi.QueryString += line.rstrip('\r\n') + '\r\n'
                 line = f.readline()
             qi.HashVal = extract_sql_sig(qi.QueryString)
+            print(qi.HashVal)
             #qi.QueryString = sqlparse.format(qi.QueryString, reindent=True, keyword_case='upper', strip_comments=False)
             result_set.append(qi)
+        else:
+            line = f.readline()
         #exitCount += 1
     #for i in range(100):
     #    result_set.append(QueryItem())
