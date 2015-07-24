@@ -36,6 +36,8 @@ def parseQueryLog(fname):
     use edubasestudydb;
     SET timestamp=1430071858;
     SELECT /*!40001 SQL_NO_CACHE */ * FROM `t_student_errnote`;
+
+    @gulby : 나중에 pandas 를 써보자...
     '''
     f = open(fname)
     curTime = time.strptime('150427', '%y%m%d')  #기본값
