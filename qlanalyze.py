@@ -236,7 +236,7 @@ class QueryItem:
 if __name__ == '__main__':
     if len(sys.argv) < 3:
         print("This program is for extracting query information and is for saving CSV type file.")
-        print("Usage : log_file_name csv_file_name")
+        print("Usage : log_file_name xlsx_file_name")
         sys.exit()
     print('STEP 1 : Parsing query log...')
     ql = parseQueryLog(sys.argv[1])
