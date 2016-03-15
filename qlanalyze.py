@@ -10,12 +10,12 @@ import xlsxwriter
 
 def extract_sql_sig(sql, tokens=None):
     ret = [];
-    
+
     if sql is not None:
         formatted = sqlparse.format(sql, reindent=True, keyword_case='upper', strip_comments=True)
         parsed = sqlparse.parse(formatted)
         tokens = parsed[0].tokens
-        
+
     for token in tokens:
         if token.is_whitespace():
             pass
@@ -41,52 +41,64 @@ def parseQueryLog(fname):
     '''
     f = open(fname)
     curTime = time.strptime('150427', '%y%m%d')  #기본값
-    
+
     result_set = []
-    line = f.readline()    
+    line = f.readline()
     exitCount = 0
     while line and exitCount < 100:
         if line[0] == '#':
             qi = QueryItem()
 
-            # 시간 정보 
+            # 땜빵
+            if '# administrator command: Prepare;' in line:
+                line = f.readline()
+
+            # 시간 정보
             if '# Time: ' in line:
                 curTime = time.strptime(line.replace('# Time: ', '').replace('\n', '').replace('\r', ''), '%y%m%d %H:%M:%S')
                 line = f.readline()
                 #print('curTime : ', curTime)
-            qi.Time = qi.MaxTime = qi.MinTime = curTime            
-            
+            qi.Time = qi.MaxTime = qi.MinTime = curTime
+
             # User 정보
             if '# User@Host: ' in line:
                 userinfo = line.replace('# User@Host: ', '').replace(' ', '').replace('\n','').replace('\r', '').split('@')
                 qi.User = userinfo[0]
                 qi.Host = userinfo[1].replace('[','').replace(']','')
-                #print(qi.User, qi.Host)            
-            line = f.readline()
-            
+                #print(qi.User, qi.Host)
+                line = f.readline()
+
+            # 땜빵
+            if '# Thread_id: ' in line:
+                line = f.readline()
+
             # Query_time, Lock_time, Rows_sent, Rows_examined
             if '# Query_time: ' in line:
                 queryinfo = line.replace('# Query_time: ', '').replace(' Lock_time: ', '').replace('Rows_sent: ', '').replace(' Rows_examined: ', '').replace('\n', '').replace('\r', '').split(' ')
+                #print(queryinfo)
                 qi.Query_time = float(queryinfo[0])
                 qi.Lock_time = float(queryinfo[1])
                 qi.Rows_sent = int(queryinfo[2])
                 qi.Rows_examined = int(queryinfo[3])
                 #print(qi.Query_time, qi.Lock_time, qi.Rows_sent, qi.Rows_examined)
             line = f.readline()
-            
+
             while line and line[0] != '#':
                 if ('use ' in line or 'USE ' in line) and (';' in line): #땜빵 수정.. ';' 검색 부분이 없으면, 일반 코드에 use가 들어가는 경우도 걸러짐. 정규식을 쓰는 것이 정석
                     line = f.readline()
                 if 'SET timestamp=' in line:
                     line = f.readline()
-                #qi.QueryString += line.replace('\n', ' ').replace('\r', '')
-                a = line.rstrip('\r\n') + '\r\n'
-                qi.QueryString += line.rstrip('\r\n') + '\r\n'
-                line = f.readline()
-            qi.HashVal = extract_sql_sig(qi.QueryString)
-            print(qi.HashVal)
+                if line and line[0] != '#':
+                    #qi.QueryString += line.replace('\n', ' ').replace('\r', '')
+                    a = line.rstrip('\r\n') + '\r\n'
+                    qi.QueryString += line.rstrip('\r\n') + '\r\n'
+                    line = f.readline()
+            # print(qi.QueryString)
+            if qi.QueryString != '':
+                qi.HashVal = extract_sql_sig(qi.QueryString)
+                print(qi.HashVal)
             #qi.QueryString = sqlparse.format(qi.QueryString, reindent=True, keyword_case='upper', strip_comments=False)
-            result_set.append(qi)
+                result_set.append(qi)
         else:
             line = f.readline()
         #exitCount += 1
@@ -155,7 +167,7 @@ def saveToExcelFile(fname, queryList):
         #ws.write(row, col, '...');
         #ws.write_comment(row, col, str, {'width':800, 'height':600}); col += 1;
     workbook.close()
-    
+
 def filterQueryList(orgql, ignore_sigs=None):
     '''
     인자로 주어진 QueryItem List에서 특정 조건에 부합하는 쿼리들은 제거하고 반환
@@ -181,7 +193,7 @@ def getIgnoreSigs(fname=None):
     result_dic = {}
     for line in f:
         result_dic[int(line)] = 1
-    return result_dic; 
+    return result_dic;
 
 def groupQueryList(orgql):
     '''
@@ -216,7 +228,7 @@ class QueryItem:
     count = 1
     MaxTime = time.strptime('150427', '%y%m%d')
     MinTime = time.strptime('150427', '%y%m%d')
-    
+
     @classmethod
     def getCSVHeaderString(cls):
         return 'time,user,host,query_time,lock_time,rows_send,rows_examined,query_string\n'
@@ -241,15 +253,15 @@ if __name__ == '__main__':
     print('STEP 1 : Parsing query log...')
     ql = parseQueryLog(sys.argv[1])
     print(len(ql), ' queries extracted from log file')
-    
+
     print('STEP 2 : Grouping query...')
     ignore_sigs = [];
     if len(sys.argv) == 4:
         #grouped_ql = groupQueryList(filterQueryList(ql, getIgnoreSigs(sys.argv[3])))
         grouped_ql = filterQueryList(groupQueryList(ql), getIgnoreSigs(sys.argv[3]))
     else:
-        grouped_ql = groupQueryList(filterQueryList(ql)) 
-    
+        grouped_ql = groupQueryList(filterQueryList(ql))
+
     print('STEP 3 : Saving result...')
     #saveToCSVFile(sys.argv[2], grouped_ql)
     saveToExcelFile(sys.argv[2], grouped_ql)
